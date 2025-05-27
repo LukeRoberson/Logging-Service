@@ -103,7 +103,7 @@ class LogHandler:
             )
 
             # Log the full traceback to terminal
-            logging.debug(
+            logging.info(
                 ''.join(traceback.format_exception(exc_type, exc_val, exc_tb))
             )
 
@@ -201,7 +201,8 @@ class LogHandler:
         """
 
         logging.info(
-            f"Sending log to web interface: {self.data['log']['message']}"
+            "Sending log to web interface: %s",
+            self.data['log']['message']
         )
 
         # Send a log as a webhook to the web interface
@@ -219,8 +220,8 @@ class LogHandler:
 
         except Exception as e:
             logging.warning(
-                "Failed to send startup webhook to web interface."
-                f" Error: {e}"
+                "Failed to send startup webhook to web interface. %s",
+                e
             )
 
     def send_to_teams(
