@@ -4,6 +4,7 @@ Class for logging messages
 
 import logging
 import traceback
+import requests
 
 
 # Logging level can be set to DEBUG, INFO, WARNING, ERROR, or CRITICAL
@@ -42,7 +43,7 @@ class LogHandler:
             data (dict): The payload containing log message and destination.
         """
 
-        print("Initializing LogHandler")
+        # Track the payload data
         self.data = data
 
     def __enter__(
@@ -57,10 +58,24 @@ class LogHandler:
             LogHandler: The instance of LogHandler.
         '''
 
-        print("Entering LogHandler context manager")
-        print(f"Payload: {self.data}")
+        logging.info("Body data received: %s", self.data)
 
-        self._validate_payload()
+        # Validate the payload to ensure it contains required fields
+        if not self._validate_payload():
+            raise ValueError("Invalid log payload: missing required fields.")
+
+        # Send messages to the appropriate destinations
+        if "web" in self.data["destination"]:
+            self.send_to_web()
+
+        if "teams" in self.data["destination"]:
+            self.send_to_teams()
+
+        if "syslog" in self.data["destination"]:
+            self.send_to_syslog()
+
+        if "sql" in self.data["destination"]:
+            self.send_to_sql()
 
         return self
 
@@ -122,21 +137,91 @@ class LogHandler:
         self,
     ) -> bool:
         """
-        Validates the payload to ensure it contains required fields.
+        Parses the payload and checks for necessary fields.
+
+        Returns:
+            bool: True if the payload is valid, False otherwise.
         """
 
-        print("Validating payload")
+        # Track the source and destination
+        self.source = self.data["source"]
+        self.destination = self.data["destination"]
+
+        # Check if the payload contains log fields
+        required_fields = ["type", "timestamp", "message"]
+        for field in required_fields:
+            if field not in self.data["log"]:
+                logging.error(f"Missing required log field: {field}")
+                return False
+
+        self.type = self.data["log"]["type"]
+        self.timestamp = self.data["log"]["timestamp"]
+        self.message = self.data["log"]["message"]
+
+        # Check Teams fields
+        if "teams" in self.data["destination"]:
+            if "teams" not in self.data:
+                logging.error("Missing 'teams' field in payload")
+                return False
+
+            required_teams_fields = ["destination", "message"]
+            for field in required_teams_fields:
+                if field not in self.data["teams"]:
+                    logging.error(f"Missing required Teams field: {field}")
+                    return False
+
+            self.teams_destination = self.data["teams"]["destination"]
+            self.teams_message = self.data["teams"]["message"]
+
+        # Check sql fields
+        if "sql" in self.data["destination"]:
+            if "sql" not in self.data:
+                logging.error("Missing 'sql' field in payload")
+                return False
+
+            required_sql_fields = ["destination"]
+            for field in required_sql_fields:
+                if field not in self.data["sql"]:
+                    logging.error(f"Missing required SQL field: {field}")
+                    return False
+
+            self.sql_destination = self.data["sql"]["destination"]
+            self.sql_fields = self.data["sql"]["fields"]
+
+        return True
 
     def send_to_web(
         self,
     ) -> None:
         """
         Sends the log message to the web interface.
-        This is simple real-time logs
+            This is simple real-time logs
+
+        Uses an API endpoint to send messages
         """
 
-        print("Sending log to web interface")
-        print("This has not been implemented yet")
+        logging.info(
+            f"Sending log to web interface: {self.data['log']['message']}"
+        )
+
+        # Send a log as a webhook to the web interface
+        try:
+            requests.post(
+                "http://web-interface:5100/api/webhook",
+                json={
+                    "source": self.source,
+                    "type": self.type,
+                    "timestamp": self.timestamp,
+                    "message": self.message,
+                },
+                timeout=3
+            )
+
+        except Exception as e:
+            logging.warning(
+                "Failed to send startup webhook to web interface."
+                f" Error: {e}"
+            )
 
     def send_to_teams(
         self,
