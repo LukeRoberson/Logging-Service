@@ -148,15 +148,28 @@ class LogHandler:
         self.destination = self.data["destination"]
 
         # Check if the payload contains log fields
-        required_fields = ["type", "timestamp", "message"]
+        required_fields = [
+            "category",
+            "alert",
+            "severity",
+            "timestamp",
+            "message",
+        ]
         for field in required_fields:
             if field not in self.data["log"]:
                 logging.error(f"Missing required log field: {field}")
                 return False
 
-        self.type = self.data["log"]["type"]
+        self.category = self.data["log"]["category"]
+        self.severity = self.data["log"]["severity"]
+        self.alert = self.data["log"]["alert"]
         self.timestamp = self.data["log"]["timestamp"]
         self.message = self.data["log"]["message"]
+
+        if "group" in self.data["log"]:
+            self.group = self.data["log"]["group"]
+        else:
+            self.group = None
 
         # Check Teams fields
         if "teams" in self.data["destination"]:
@@ -211,7 +224,10 @@ class LogHandler:
                 "http://web-interface:5100/api/webhook",
                 json={
                     "source": self.source,
-                    "type": self.type,
+                    "group": self.group,
+                    "category": self.category,
+                    "alert": self.alert,
+                    "severity": self.severity,
                     "timestamp": self.timestamp,
                     "message": self.message,
                 },
