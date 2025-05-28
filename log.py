@@ -7,11 +7,6 @@ import traceback
 import requests
 
 
-# Logging level can be set to DEBUG, INFO, WARNING, ERROR, or CRITICAL
-LOGGING_LEVEL = "INFO"
-logging.basicConfig(level=logging.INFO)
-
-
 class LogHandler:
     """
     Class for handling log messages.

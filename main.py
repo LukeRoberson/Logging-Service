@@ -14,13 +14,33 @@ from flask import (
 )
 
 import logging
+import requests
 
 from log import LogHandler
 
 
-# Logging level can be set to DEBUG, INFO, WARNING, ERROR, or CRITICAL
-LOGGING_LEVEL = "INFO"
-logging.basicConfig(level=logging.INFO)
+# Get global config
+global_config = None
+try:
+    response = requests.get("http://web-interface:5100/api/config", timeout=3)
+    response.raise_for_status()  # Raise an error for bad responses
+    global_config = response.json()
+
+except Exception as e:
+    logging.critical(
+        "Failed to fetch global config from web interface."
+        f" Error: {e}"
+    )
+
+if global_config is None:
+    raise RuntimeError("Could not load global config from web interface")
+
+# Set up logging
+log_level_str = global_config['config']['web']['logging-level'].upper()
+log_level = getattr(logging, log_level_str, logging.INFO)
+logging.basicConfig(level=log_level)
+logging.info("Logging level set to: %s", log_level_str)
+
 
 # Create the Flask application
 app = Flask(__name__)
@@ -64,7 +84,7 @@ def log():
 
     # Create an instance of LogHandler
     with LogHandler(data) as log_handler:
-        print(log_handler.data)
+        logging.debug("Log handler: %s", log_handler.data)
 
     return jsonify(
         {'result': 'success'}
