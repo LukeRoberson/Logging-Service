@@ -1,5 +1,19 @@
 '''
-Class for logging messages
+Module: log.py
+
+Sends log messages to various destinations, including:
+    - Web interface (live alerts)
+    - Microsoft Teams
+    - Syslog server
+    - SQL database (for long-term storage)
+
+Classes:
+    LogHandler
+        Handles log messages and sends them to specified destinations.
+        Can be used as a context manager for resource management.
+
+Dependencies:
+    requests: For sending HTTP requests to web interface and Teams
 '''
 
 import logging
@@ -9,21 +23,12 @@ import requests
 
 class LogHandler:
     """
-    Class for handling log messages.
+    Handles log messages and sends them to specified destinations.
     It can send messages to different destinations like web
         interface, Teams, syslog, and SQL.
 
-    Methods:
-        __init__: Initializes the LogHandler instance.
-        __enter__: Context manager setup for LogHandler.
-        __exit__: Context manager teardown for LogHandler.
-        __str__: Returns a string representation of the LogHandler instance.
-        __repr__: Returns a detailed string representation.
-        _validate_payload: Validates the payload.
-        send_to_web: Sends the log message to the web interface.
-        send_to_teams: Sends the log message to Microsoft Teams.
-        send_to_syslog: Sends the log message to a syslog server.
-        send_to_sql: Sends the log message to a SQL database.
+    args:
+        data (dict): The payload containing log message and destination.
     """
 
     def __init__(
@@ -240,11 +245,26 @@ class LogHandler:
     ) -> None:
         """
         Sends the log message to Microsoft Teams.
-        Uses the Teams service to send messages
+            Uses the Teams service to send messages
         """
 
-        print("Sending log to Teams")
-        print("This has not been implemented yet")
+        # API call to the Teams service
+        logging.info("LogHandler.sent_to_teams: Sending log to Teams")
+        try:
+            requests.post(
+                "http://teams:5100/api/message",
+                json={
+                    "chat-id": self.data["teams"]["destination"],
+                    "message": self.data["teams"]["message"],
+                },
+                timeout=3
+            )
+
+        except Exception as e:
+            logging.warning(
+                "Failed to send log to Teams service. %s",
+                e
+            )
 
     def send_to_syslog(
         self,
