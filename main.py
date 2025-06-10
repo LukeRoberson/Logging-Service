@@ -1,106 +1,119 @@
 """
-Main module for handling log messages and alerts
-    Send messages to:
-        - Web interface
-        - Teams
-        - Syslog
-        - SQL
+Module: main.py
+
+Main module for handling log messages and alerts from services and plugins.
+Manages sending messages to:
+    - Web interface
+    - Teams
+    - Syslog
+    - SQL
+
+Module Tasks:
+    1. Fetch global configuration from the web interface.
+    2. Set up logging based on the global configuration.
+    3. Create a Flask application instance and register API endpoints.
+
+Usage:
+    This is a Flask application that should run behind a WSGI server inside
+        a Docker container.
+    Build the Docker image and run it with the provided Dockerfile.
+
+Functions:
+    - fetch_global_config:
+        Fetches the global configuration from the web interface.
+    - logging_setup:
+        Sets up the root logger (for terminal logging within the service).
+
+Blueprints:
+    - log_api: Handles API endpoints for logging and health checks.
+
+Dependencies:
+    - Flask: For creating the web application.
+    - logging: For logging messages to the terminal.
+    - requests: For making HTTP requests to the web interface.
+
+Custom Dependencies:
+    - api.log_api: Contains API endpoints for logging and health checks.
 """
 
-from flask import (
-    Flask,
-    jsonify,
-    request
-)
 
+# Standard library imports
+from flask import Flask
 import logging
 import requests
 
-from log import LogHandler
+# Custom imports
+from api import log_api
 
 
-# Get global config
-global_config = None
-try:
-    response = requests.get("http://web-interface:5100/api/config", timeout=3)
-    response.raise_for_status()  # Raise an error for bad responses
-    global_config = response.json()
+CONFIG_URL = "http://web-interface:5100/api/config"
 
-except Exception as e:
-    logging.critical(
-        "Failed to fetch global config from web interface."
-        f" Error: {e}"
+
+def fetch_global_config(
+    url: str = CONFIG_URL,
+) -> dict:
+    """
+    Fetch the global configuration from the web interface.
+
+    Args:
+        None
+
+    Returns:
+        dict: The global configuration loaded from the web interface.
+
+    Raises:
+        RuntimeError: If the global configuration cannot be loaded.
+    """
+
+    global_config = None
+    try:
+        response = requests.get(url, timeout=3)
+        response.raise_for_status()
+        global_config = response.json()
+
+    except Exception as e:
+        logging.critical(
+            "Failed to fetch global config from web interface."
+            f" Error: {e}"
+        )
+
+    if global_config is None:
+        raise RuntimeError("Could not load global config from web interface")
+
+    return global_config
+
+
+def logging_setup(
+    config: dict,
+) -> None:
+    """
+    Set up the root logger for the web service.
+
+    Args:
+        config (dict): The global configuration dictionary
+
+    Returns:
+        None
+    """
+
+    # Get the logging level from the configuration (eg, "INFO")
+    log_level_str = config['config']['web']['logging-level'].upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
+
+    # Set up the logging configuration
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    logging.info("Logging setup complete with level: %s", log_level)
 
-if global_config is None:
-    raise RuntimeError("Could not load global config from web interface")
+
+# Get the global configuration for the app
+global_config = fetch_global_config(CONFIG_URL)
 
 # Set up logging
-log_level_str = global_config['config']['web']['logging-level'].upper()
-log_level = getattr(logging, log_level_str, logging.INFO)
-logging.basicConfig(level=log_level)
-logging.info("Logging level set to: %s", log_level_str)
-
+logging_setup(global_config)
 
 # Create the Flask application
 app = Flask(__name__)
-
-
-@app.route(
-    '/api/health',
-    methods=['GET']
-)
-def health():
-    """
-    Health check endpoint.
-    Returns a JSON response indicating the service is running.
-    """
-
-    return jsonify({'status': 'ok'})
-
-
-@app.route(
-    '/api/log',
-    methods=['POST']
-)
-def log():
-    """
-    Logging endpoint.
-    Accepts a JSON payload with a log message and destination.
-    """
-
-    data = request.get_json()
-    logging.info("Received payload: %s", data)
-
-    # Simple validation to check main fields in the payload
-    if not all(field in data for field in ("source", "destination", "log")):
-        logging.error("Missing required fields in payload")
-        return jsonify(
-            {
-                "result": "error",
-                "error": "Missing required fields"
-            }
-        ), 400
-
-    # Create an instance of LogHandler
-    with LogHandler(data) as log_handler:
-        logging.debug("Log handler: %s", log_handler.data)
-
-    return jsonify(
-        {'result': 'success'}
-    )
-
-
-'''
-NOTE: When running in a container, the host and port are set in the
-    uWSGI config. uWSGI starts the process, which means the
-    Flask app is not run directly.
-    This can be uncommented for local testing.
-'''
-# if __name__ == "__main__":
-#     # Run the application
-#     app.run(
-#         debug=True,
-#         host='0.0.0.0',
-#         port=5000,
-#     )
+app.register_blueprint(log_api)
