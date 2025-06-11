@@ -46,20 +46,20 @@ import requests
 from api import log_api
 
 
-CONFIG_URL = "http://web-interface:5100/api/config"
+CONFIG_URL = "http://core:5100/api/config"
 
 
 def fetch_global_config(
     url: str = CONFIG_URL,
 ) -> dict:
     """
-    Fetch the global configuration from the web interface.
+    Fetch the global configuration from the core service.
 
     Args:
-        None
+        url (str): The URL to fetch the global configuration from.
 
     Returns:
-        dict: The global configuration loaded from the web interface.
+        dict: The global configuration loaded from the core service.
 
     Raises:
         RuntimeError: If the global configuration cannot be loaded.
@@ -73,14 +73,14 @@ def fetch_global_config(
 
     except Exception as e:
         logging.critical(
-            "Failed to fetch global config from web interface."
+            "Failed to fetch global config from core service."
             f" Error: {e}"
         )
 
     if global_config is None:
-        raise RuntimeError("Could not load global config from web interface")
+        raise RuntimeError("Could not load global config from core service")
 
-    return global_config
+    return global_config['config']
 
 
 def logging_setup(
@@ -97,7 +97,7 @@ def logging_setup(
     """
 
     # Get the logging level from the configuration (eg, "INFO")
-    log_level_str = config['config']['web']['logging-level'].upper()
+    log_level_str = config['web']['logging-level'].upper()
     log_level = getattr(logging, log_level_str, logging.INFO)
 
     # Set up the logging configuration
