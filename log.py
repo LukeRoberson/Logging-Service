@@ -21,6 +21,10 @@ import traceback
 import requests
 
 
+LOG_WEBHOOK_URL = "http://web-interface:5100/api/webhook"
+TEAMS_MESSAGE_URL = "http://teams:5100/api/message"
+
+
 class LogHandler:
     """
     Handles log messages and sends them to specified destinations.
@@ -221,7 +225,7 @@ class LogHandler:
         # Send a log as a webhook to the web interface
         try:
             requests.post(
-                "http://web-interface:5100/api/webhook",
+                LOG_WEBHOOK_URL,
                 json={
                     "source": self.source,
                     "group": self.group,
@@ -252,7 +256,7 @@ class LogHandler:
         logging.info("LogHandler.sent_to_teams: Sending log to Teams")
         try:
             requests.post(
-                "http://teams:5100/api/message",
+                TEAMS_MESSAGE_URL,
                 json={
                     "chat-id": self.data["teams"]["destination"],
                     "message": self.data["teams"]["message"],
