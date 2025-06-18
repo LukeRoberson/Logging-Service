@@ -186,16 +186,16 @@ class LiveAlerts:
 
         else:
             query = """
-                SELECT
-                    timestamp,
-                    source,
-                    "group",
-                    category,
-                    alert,
-                    severity,
-                    message
-                FROM alerts
-                WHERE timestamp >= datetime('now', '-24 hours')
+            SELECT
+                strftime('%s', timestamp) AS unix_timestamp,
+                source,
+                "group",
+                category,
+                alert,
+                severity,
+                message
+            FROM alerts
+            WHERE timestamp >= datetime('now', '-24 hours')
             """
         params = []
 
