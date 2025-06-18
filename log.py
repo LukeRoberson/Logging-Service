@@ -14,14 +14,25 @@ Classes:
 
 Dependencies:
     requests: For sending HTTP requests to web interface and Teams
+    logging: For logging messages to the terminal
+    traceback: For logging exceptions with full tracebacks
+    flask.current_app: For accessing the Flask application context
+
+Custom Imports:
+    livealerts.LiveAlerts: For handling live alert logging
 '''
 
+# Standard library imports
 import logging
 import traceback
 import requests
+from flask import current_app
+from typing import cast
+
+# Custom imports
+from livealerts import LiveAlerts
 
 
-LOG_WEBHOOK_URL = "http://web-interface:5100/api/webhook"
 TEAMS_MESSAGE_URL = "http://teams:5100/api/message"
 
 
@@ -173,7 +184,7 @@ class LogHandler:
         if "group" in self.data["log"]:
             self.group = self.data["log"]["group"]
         else:
-            self.group = None
+            self.group = ""
 
         # Check Teams fields
         if "teams" in self.data["destination"]:
@@ -211,38 +222,35 @@ class LogHandler:
         self,
     ) -> None:
         """
-        Sends the log message to the web interface.
-            This is simple real-time logs
+        Stores the log messages in the local database. These can be retrieved
+            by the web interface for live alerts
 
-        Uses an API endpoint to send messages
+        Args:
+            None
+
+        Returns:
+            None
         """
 
         logging.info(
-            "Sending log to web interface: %s",
+            "Saving log to local database: %s",
             self.data['log']['message']
         )
 
-        # Send a log as a webhook to the web interface
-        try:
-            requests.post(
-                LOG_WEBHOOK_URL,
-                json={
-                    "source": self.source,
-                    "group": self.group,
-                    "category": self.category,
-                    "alert": self.alert,
-                    "severity": self.severity,
-                    "timestamp": self.timestamp,
-                    "message": self.message,
-                },
-                timeout=3
-            )
+        # Get the LiveAlerts instance from the current Flask app context
+        logger = cast(LiveAlerts, current_app.config.get('LOGGER'))
 
-        except Exception as e:
-            logging.warning(
-                "Failed to send startup webhook to web interface. %s",
-                e
-            )
+        logger.log_alert(
+            timestamp=self.timestamp,
+            source=self.source,
+            group=self.group,
+            category=self.category,
+            alert=self.alert,
+            severity=self.severity,
+            message=self.message
+        )
+
+        logger.purge_old_alerts()
 
     def send_to_teams(
         self,

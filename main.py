@@ -34,16 +34,21 @@ Dependencies:
 
 Custom Dependencies:
     - api.log_api: Contains API endpoints for logging and health checks.
+    - livealerts.LiveAlerts: For handling live alerts in the web interface.
 """
 
 
 # Standard library imports
 from flask import Flask
+from flask_session import Session
 import logging
 import requests
+from typing import cast
+import os
 
 # Custom imports
 from api import log_api
+from livealerts import LiveAlerts
 
 
 CONFIG_URL = "http://core:5100/api/config"
@@ -108,12 +113,44 @@ def logging_setup(
     logging.info("Logging setup complete with level: %s", log_level)
 
 
-# Get the global configuration for the app
+def create_app(
+    config: dict,
+    alerts: LiveAlerts,
+) -> Flask:
+    """
+    Create the Flask application instance and set up the configuration.
+    Registers the necessary blueprints for the web service.
+
+    Args:
+        config (dict):
+            The global configuration dictionary.
+        alerts (LiveAlerts):
+            An instance of LiveAlerts for handling live alerts.
+
+    Returns:
+        Flask: The configured Flask application instance.
+    """
+
+    # Create the Flask application
+    app = Flask(__name__)
+    app.config['SECRET_KEY'] = os.getenv('api_master_pw')
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_FILE_DIR'] = '/app/flask_session'
+    app.config['GLOBAL_CONFIG'] = config
+    app.config['LOGGER'] = cast(LiveAlerts, alerts)
+    Session(app)
+
+    # Register blueprints
+    app.register_blueprint(log_api)
+
+    return app
+
+
+# Setup the logging service
 global_config = fetch_global_config(CONFIG_URL)
-
-# Set up logging
 logging_setup(global_config)
-
-# Create the Flask application
-app = Flask(__name__)
-app.register_blueprint(log_api)
+live_alerts = LiveAlerts()
+app = create_app(
+    config=global_config,
+    alerts=live_alerts
+)
