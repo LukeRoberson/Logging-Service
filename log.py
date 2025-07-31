@@ -73,7 +73,7 @@ class LogHandler:
             LogHandler: The instance of LogHandler.
         '''
 
-        logging.info("Body data received: %s", self.data)
+        logging.debug("Body data received: %s", self.data)
 
         # Validate the payload to ensure it contains required fields
         if not self._validate_payload():
@@ -232,7 +232,7 @@ class LogHandler:
             None
         """
 
-        logging.info(
+        logging.debug(
             "Saving log to local database: %s",
             self.data['log']['message']
         )
@@ -261,7 +261,7 @@ class LogHandler:
         """
 
         # API call to the Teams service
-        logging.info("LogHandler.sent_to_teams: Sending log to Teams")
+        logging.debug("LogHandler.sent_to_teams: Sending log to Teams")
         try:
             requests.post(
                 TEAMS_MESSAGE_URL,

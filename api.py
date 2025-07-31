@@ -84,7 +84,7 @@ def log() -> Response:
     """
 
     data = request.get_json()
-    logging.info("Received payload: %s", data)
+    logging.debug("Received payload: %s", data)
 
     # Simple validation to check main fields in the payload
     if not all(field in data for field in ("source", "destination", "log")):
@@ -192,7 +192,7 @@ def livealerts() -> Response:
         severity=severity,
     )
 
-    logging.info(
+    logging.debug(
         "Returning %d alerts for page %d/%d",
         len(alerts),
         page_number,
